@@ -29,7 +29,7 @@ static void pabort(const char *s)
 	abort();
 }
 
-static const char *device = "/dev/spidev1.1";
+static const char *device = "/dev/spidev0.0";
 static uint8_t mode;
 static uint8_t bits = 8;
 static uint32_t speed = 500000;
@@ -38,7 +38,8 @@ static uint16_t delay;
 static void transfer(int fd)
 {
 	int ret;
-	uint8_t tx[] = {
+#if 0
+    uint8_t tx[] = {
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 		0x40, 0x00, 0x00, 0x00, 0x00, 0x95,
 		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -47,7 +48,17 @@ static void transfer(int fd)
 		0xDE, 0xAD, 0xBE, 0xEF, 0xBA, 0xAD,
 		0xF0, 0x0D,
 	};
-	uint8_t rx[ARRAY_SIZE(tx)] = {0, };
+#else
+    uint8_t tx[] = {
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	};
+#endif
+    uint8_t rx[ARRAY_SIZE(tx)] = {0, };
 	struct spi_ioc_transfer tr = {
 		.tx_buf = (unsigned long)tx,
 		.rx_buf = (unsigned long)rx,
@@ -67,6 +78,24 @@ static void transfer(int fd)
 		printf("%.2X ", rx[ret]);
 	}
 	puts("");
+
+    long int ADC_Temp_Code;
+    float TempVal, ADC_Temp_Code_dec;;
+
+//    ADC_Temp_Code = make16(MSByte,LSByte); //16 bit ADC code is stored ADC_Temp_Code.
+
+    ADC_Temp_Code = (rx[0] << 8) + rx[1];
+    ADC_Temp_Code_dec = (float)ADC_Temp_Code; //Covert to float for division.
+    if ((0x2000 & ADC_Temp_Code) == 0x2000) //Check sign bit for negative value.
+    {
+	TempVal = (ADC_Temp_Code_dec - 16384)/32; //Conversion formula if negative temperature.
+    }
+    else
+    {
+	TempVal = (ADC_Temp_Code_dec/32); //Conversion formula if positive temperature.
+    }
+
+    printf("Temperature = %f\n", TempVal);
 }
 
 static void print_usage(const char *prog)
